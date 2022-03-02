@@ -19,16 +19,6 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 
 
-def my_get_dummies(df: pd.DataFrame, cols: list = None, drop_first: bool = False,
-                   drop_orig: bool = False) -> pd.DataFrame:
-    cols = df.columns.tolist() if cols is None else cols
-    for col in cols:
-        dummies = pd.get_dummies(df[[col]], columns=[col], drop_first=drop_first)
-        df = pd.concat(([df, dummies]), axis=1) if not drop_orig \
-            else pd.concat(([df, dummies]), axis=1).drop([col], axis=1)
-    return df
-
-
 def view_ols_regression_model(x, y, test_split=0.2, print_summary=True, random_state: int = None):
     x = sm.add_constant(x)
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=random_state)
@@ -89,9 +79,10 @@ def get_model_1_data():
     df = get_data()
     y = df.copy(True)
     y = y[['current price']]
-    x = my_get_dummies(df, cols=['condition', 'rating'], drop_orig=True)
-    x = x.drop(labels=['economy', 'current price', 'top speed', 'hp', 'torque', 'condition_1', 'condition_2',
-                       'condition_3', 'condition_4', 'rating_1', 'rating_2', 'rating_3'], axis=1)
+    x = pd.get_dummies(df, columns=['condition', 'years'])
+    x = x.drop(['current price', 'top speed', 'hp', 'torque', 'economy', 'rating',
+                'condition_1', 'condition_2', 'condition_3', 'condition_4', 'condition_5'], axis=1)
+    print(x.columns)
     return x, y
 
 
