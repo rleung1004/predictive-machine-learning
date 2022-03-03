@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from matplotlib import pyplot as plt
-from sklearn.linear_model import Ridge
+from numpy import arange
+from sklearn.linear_model import Ridge, RidgeCV
 from sklearn.metrics import mean_squared_error
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RepeatedKFold
 from keras.models import Sequential
 from keras.layers import Dense
 
@@ -110,13 +111,11 @@ def build_stand_alone_models(x_train: pd.DataFrame, x_test: pd.DataFrame, y_trai
     save_scalers(x_scaler, y_scaler)
 
     model_params_list = [
-        {'num_neurons': 6, 'num_layers': 2, 'lr': 0.002, 'initializer': 'he_normal', 'batch_size': 10, 'epochs': 2000,
-         'input_dim': len(model_x_train.columns.tolist())},
         {'num_neurons': 7, 'num_layers': 2, 'lr': 0.00075, 'initializer': 'he_uniform', 'batch_size': 10,
-         'epochs': 2000, 'input_dim': len(model_x_train.columns.tolist())},
+         'epochs': 1000, 'input_dim': len(model_x_train.columns.tolist())},
         {'num_neurons': 30, 'num_layers': 6, 'lr': 0.001, 'initializer': 'he_normal', 'batch_size': 5,
-         'epochs': 300, 'input_dim': len(model_x_train.columns.tolist())},
-        {'num_neurons': 20, 'num_layers': 8, 'lr': 0.001, 'initializer': 'he_normal', 'epochs': 300, 'batch_size': 5,
+         'epochs': 1000, 'input_dim': len(model_x_train.columns.tolist())},
+        {'num_neurons': 20, 'num_layers': 8, 'lr': 0.001, 'initializer': 'he_normal', 'epochs': 1000, 'batch_size': 5,
          'input_dim': len(model_x_train.columns.tolist())}
     ]
 
@@ -141,7 +140,8 @@ def build_stacked_model(models: list, x_test: pd.DataFrame, x_val: pd.DataFrame,
         df_predictions[str(i)] = np.stack(predictions, axis=1)[0].tolist()
         df_validation_predictions[str(i)] = np.stack(validation_predictions, axis=1)[0].tolist()
 
-    stacked_model = Ridge()
+    cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+    stacked_model = RidgeCV(alphas=arange(0, 1, 0.01), cv=cv, scoring='neg_mean_absolute_error')
     stacked_model.fit(df_predictions, y_test)
 
     # Save model into a binary file
@@ -159,7 +159,6 @@ def build_stacked_model(models: list, x_test: pd.DataFrame, x_val: pd.DataFrame,
 def main():
     x_train, x_temp, y_train, y_temp = prepare_model_data()
     x_test, x_val, y_test, y_val = train_test_split(x_temp, y_temp, test_size=0.5)
-    models = []
     models = build_stand_alone_models(x_train, x_val, y_train, y_val)
     build_stacked_model(models, x_test, x_val, y_test, y_val)
 
