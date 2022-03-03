@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from matplotlib import pyplot as plt
+from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_squared_error
 
 from sklearn.model_selection import train_test_split
@@ -14,6 +15,14 @@ from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 from keras.models import load_model
 import pickle as pkl
+
+MANUAL_FEATURE_LIST = ['on road old', 'on road now', 'km', 'condition_6', 'condition_7', 'condition_8', 'condition_9',
+                       'condition_10', 'years_2', 'years_3', 'years_4', 'years_5', 'years_6', 'years_7']
+SELECTED_FEATURE_LIST = ['on road old', 'on road now', 'km', 'top speed', 'hp', 'torque', 'condition_1', 'condition_2',
+                         'condition_3', 'condition_4', 'condition_5', 'condition_6', 'condition_8', 'condition_9',
+                         'condition_10', 'rating_1', 'rating_2', 'rating_4', 'rating_5', 'economy_8', 'economy_9',
+                         'economy_12', 'economy_13', 'economy_14', 'economy_15', 'years_3', 'years_4', 'years_5',
+                         'years_6', 'years_7']
 
 
 def save_scalers(x_scaler=None, y_scaler=None, is_manual: bool = True):
@@ -109,11 +118,8 @@ def early_stopping(x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.Data
 
 def build_manual_feature_set_models(x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.DataFrame,
                                     y_test: pd.DataFrame):
-    feature_list = ['on road old', 'on road now', 'km', 'condition_6', 'condition_7', 'condition_8', 'condition_9',
-                    'condition_10', 'years_2', 'years_3', 'years_4', 'years_5', 'years_6', 'years_7']
-
-    model_x_train = x_train.copy(True)[feature_list]
-    model_x_test = x_test.copy(True)[feature_list]
+    model_x_train = x_train.copy(True)[MANUAL_FEATURE_LIST]
+    model_x_test = x_test.copy(True)[MANUAL_FEATURE_LIST]
     x_scaler, y_scaler = StandardScaler(), StandardScaler()
     x_scaled, y_scaled = x_scaler.fit_transform(model_x_train), y_scaler.fit_transform(y_train.copy(True))
     x_test_scaled = x_scaler.fit_transform(model_x_test)
@@ -137,14 +143,8 @@ def build_manual_feature_set_models(x_train: pd.DataFrame, x_test: pd.DataFrame,
 
 def build_selected_best_feature_set_models(x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.DataFrame,
                                            y_test: pd.DataFrame):
-    feature_list = ['on road old', 'on road now', 'km', 'top speed', 'hp', 'torque', 'condition_1', 'condition_2',
-                    'condition_3', 'condition_4', 'condition_5', 'condition_6', 'condition_8', 'condition_9',
-                    'condition_10', 'rating_1', 'rating_2', 'rating_4', 'rating_5', 'economy_8', 'economy_9',
-                    'economy_12', 'economy_13', 'economy_14', 'economy_15', 'years_3', 'years_4', 'years_5',
-                    'years_6', 'years_7']
-
-    model_x_train = x_train.copy(True)[feature_list]
-    model_x_test = x_test.copy(True)[feature_list]
+    model_x_train = x_train.copy(True)[SELECTED_FEATURE_LIST]
+    model_x_test = x_test.copy(True)[SELECTED_FEATURE_LIST]
     x_scaler, y_scaler = StandardScaler(), StandardScaler()
     x_scaled, y_scaled = x_scaler.fit_transform(model_x_train), y_scaler.fit_transform(y_train.copy(True))
     x_test_scaled = x_scaler.fit_transform(model_x_test)
@@ -166,23 +166,53 @@ def build_selected_best_feature_set_models(x_train: pd.DataFrame, x_test: pd.Dat
     return models
 
 
-def build_stacked_model(models: list = None):
-    if models is None:
-        print("No base models are given")
-        return
+def build_stacked_model(models: list, x_test: pd.DataFrame, x_val: pd.DataFrame,
+                        y_test: pd.DataFrame, y_val: pd.DataFrame):
+    df_predictions = pd.DataFrame()
+    df_validation_predictions = pd.DataFrame()
+    for i, model_data in enumerate(models):
+        model, is_manual = model_data
+        x_scaler, y_scaler = load_scalers(is_manual)
+        if is_manual:
+            x_test_scaled = x_scaler.transform(x_test.copy(True)[MANUAL_FEATURE_LIST])
+            print(x_val)
+            x_val_scaled = x_scaler.transform(x_val.copy(True)[MANUAL_FEATURE_LIST])
+        else:
+            x_test_scaled = x_scaler.transform(x_test.copy(True)[SELECTED_FEATURE_LIST])
+            x_val_scaled = x_scaler.transform(x_val.copy(True)[SELECTED_FEATURE_LIST])
+        predictions = model.predict(x_test_scaled)
+        validation_predictions = model.predict(x_val_scaled)
+        colName = str(i)
+        df_predictions[colName] = np.stack(predictions, axis=1)[0].tolist()
+        df_validation_predictions[colName] = np.stack(validation_predictions, axis=1)[0].tolist()
+
+    stacked_model = Ridge()
+    stacked_model.fit(df_predictions, y_test)
+
+    # Save model into a binary file
+    pkl.dump(stacked_model, open('./models/stacked_model.pkl', 'wb'))
+
+    print(f"***** Stacked Model *****")
+    stacked_predictions = stacked_model.predict(df_validation_predictions)
+
+    rmse = np.sqrt(mean_squared_error(y_val, stacked_predictions))
+    print('Root Mean Squared Error:', rmse)
+    with open('model_evaluation.txt', 'a') as file:
+        file.write(f"Stacked Model RMSE: {rmse}\n")
 
 
 def main():
-    x_train, x_test, y_train, y_test = prepare_model_data()
+    x_train, x_temp, y_train, y_temp = prepare_model_data()
+    x_test, x_val, y_test, y_val = train_test_split(x_temp, y_temp, test_size=0.5)
     models = []
-
-    manual_models = build_manual_feature_set_models(x_train, x_test, y_train, y_test)
+    manual_models = build_manual_feature_set_models(x_train, x_val, y_train, y_val)
     for model in manual_models:
-        models.append(model)
+        models.append((model, True))
 
-    select_k_best_models = build_selected_best_feature_set_models(x_train, x_test, y_train, y_test)
+    select_k_best_models = build_selected_best_feature_set_models(x_train, x_val, y_train, y_val)
     for model in select_k_best_models:
-        models.append(model)
+        models.append((model, False))
+    build_stacked_model(models, x_test, x_val, y_test, y_val)
 
 
 if __name__ == '__main__':

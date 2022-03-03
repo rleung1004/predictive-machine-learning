@@ -1,0 +1,9 @@
+
+Manual Feature Set Model 0 RMSE: 6749.384118895934
+Manual Feature Set Model 1 RMSE: 7452.7539763998975
+Selected Feature Set Model 0 RMSE: 9664.94223784453
+Selected Feature Set Model 1 RMSE: 6747.036376692229
+Stacked Model RMSE: 3937.3226114389377
+Stacked Model RMSE: 4133.707408335234
+Stacked Model RMSE: 4789.451909543367
+Stacked Model RMSE: 4505.484651547882
