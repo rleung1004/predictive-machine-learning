@@ -3,6 +3,8 @@ import pandas as pd
 import pickle as pkl
 from keras.models import load_model
 
+PATH = "./datasets/car_prices_mystery.csv"
+
 FEATURE_LIST = ['on road old', 'on road now', 'km', 'condition_6', 'condition_7', 'condition_8', 'condition_9',
                 'condition_10', 'years_2', 'years_3', 'years_4', 'years_5', 'years_6', 'years_7']
 
@@ -14,7 +16,7 @@ df_train_columns = pd.DataFrame().append({
 
 
 def prepare_model_data():
-    df = pd.read_csv("datasets/car_prices_mystery.csv")
+    df = pd.read_csv(PATH)
     df = pd.get_dummies(df, columns=['condition', 'rating', 'economy', 'years'])
     df = adjustDfColumns(df_train_columns, df)
     return df
