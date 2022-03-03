@@ -85,7 +85,7 @@ def create_model(**kwargs):
 
 def early_stopping(x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.DataFrame, y_test: pd.DataFrame,
                    model_params: dict, filename: str = "model", model_name: str = None):
-    es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=100)
+    es = EarlyStopping(monitor='loss', mode='min', verbose=1, patience=75)
     mc = ModelCheckpoint(f'{filename}.h5', monitor='loss', mode='min', verbose=1,
                          save_best_only=True)
 
@@ -101,7 +101,7 @@ def early_stopping(x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.Data
 
 
 def build_stand_alone_models(x_train: pd.DataFrame, x_test: pd.DataFrame, y_train: pd.DataFrame,
-                                    y_test: pd.DataFrame):
+                             y_test: pd.DataFrame):
     model_x_train = x_train.copy(True)[FEATURE_LIST]
     model_x_test = x_test.copy(True)[FEATURE_LIST]
     x_scaler, y_scaler = StandardScaler(), StandardScaler()
@@ -114,6 +114,10 @@ def build_stand_alone_models(x_train: pd.DataFrame, x_test: pd.DataFrame, y_trai
          'input_dim': len(model_x_train.columns.tolist())},
         {'num_neurons': 7, 'num_layers': 2, 'lr': 0.00075, 'initializer': 'he_uniform', 'batch_size': 10,
          'epochs': 2000, 'input_dim': len(model_x_train.columns.tolist())},
+        {'num_neurons': 30, 'num_layers': 6, 'lr': 0.001, 'initializer': 'he_normal', 'batch_size': 5,
+         'epochs': 300, 'input_dim': len(model_x_train.columns.tolist())},
+        {'num_neurons': 20, 'num_layers': 8, 'lr': 0.001, 'initializer': 'he_normal', 'epochs': 300, 'batch_size': 5,
+         'input_dim': len(model_x_train.columns.tolist())}
     ]
 
     models = []
